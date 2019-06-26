@@ -1,0 +1,30 @@
+#!upstart
+#
+# Rocket.Chat upstart script
+
+description "Rocket.Chat Server"
+
+start on startup
+stop on shutdown
+
+console log
+respawn
+respawn limit 10 5
+
+env NODE_BIN_DIR="{{ rocket_chat_node_10_40_path }}"
+env NODE_PATH="/usr/local/lib/node_modules"
+env APPLICATION_PATH="{{ rocket_chat_application_path }}/bundle/main.js"
+
+chdir {{ rocket_chat_application_path }}
+setuid {{ rocket_chat_service_user }}
+setgid {{ rocket_chat_service_group }}
+
+env MONGO_URL="mongodb://{{ rocket_chat_mongodb_server }}:{{ rocket_chat_mongodb_port }}/rocketchat"
+env MONGO_OPLOG_URL="mongodb://{{ rocket_chat_mongodb_server }}:{{ rocket_chat_mongodb_port }}/local"
+env ROOT_URL="https://{{ rocket_chat_service_host }}"
+env PORT="{{ rocket_chat_service_port }}"
+
+script
+    PATH=$NODE_BIN_DIR:$PATH
+    node $APPLICATION_PATH
+end script

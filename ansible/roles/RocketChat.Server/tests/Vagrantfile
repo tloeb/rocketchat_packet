@@ -1,0 +1,64 @@
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
+
+Vagrant.configure("2") do |config|
+  config.ssh.insert_key = false
+  config.ssh.username = 'vagrant'
+
+  if Vagrant.has_plugin?("vagrant-hostmanager")
+	config.hostmanager.manage_host = true
+  end
+
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--memory", "2048"]
+  end
+
+  # Debian 8
+  config.vm.define "debian8" do |rocket|
+    rocket.vm.hostname = "debian8.dev"
+    rocket.vm.box = "debian/jessie64"
+    rocket.vm.network :private_network, ip: "192.168.60.3"
+    rocket.vm.network "forwarded_port", guest: 3000, host: 4000
+    rocket.vm.network "forwarded_port", guest: 443, host: 4430
+  end
+
+  # Ubuntu 16.04 LTS
+  config.vm.define "ubuntu16" do |rocket|
+    rocket.vm.hostname = "ubuntu16.dev"
+    rocket.vm.box = "bento/ubuntu-16.04"
+    rocket.vm.network :private_network, ip: "192.168.60.4"
+    rocket.vm.network "forwarded_port", guest: 3000, host: 4001
+    rocket.vm.network "forwarded_port", guest: 443, host: 4431
+  end
+
+  # Ubuntu 14.04 LTS
+  config.vm.define "ubuntu14" do |rocket|
+    rocket.vm.hostname = "ubuntu14.dev"
+    rocket.vm.box = "ubuntu/trusty64"
+    rocket.vm.network :private_network, ip: "192.168.60.5"
+    rocket.vm.network "forwarded_port", guest: 3000, host: 4002
+    rocket.vm.network "forwarded_port", guest: 443, host: 4432
+  end
+
+  # CentOS 7
+  config.vm.define "centos7" do |rocket|
+    rocket.vm.hostname = "centos7.dev"
+    rocket.vm.box = "centos/7"
+    rocket.vm.network :private_network, ip: "192.168.60.6"
+    rocket.vm.network "forwarded_port", guest: 3000, host: 4003
+    rocket.vm.network "forwarded_port", guest: 443, host: 4433
+  end
+
+  # Ansible
+  config.vm.provision "ansible" do |ansible|
+
+    ansible.groups = {
+      "chat_servers" => ["debian8", "ubuntu14", "ubuntu16", "centos7"],
+    }
+
+    #ansible.extra_vars = { }
+
+    ansible.sudo = true
+    ansible.playbook = "provision.yml"
+	ansible.raw_arguments = "-vv"
+  end
+end

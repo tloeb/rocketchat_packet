@@ -1,0 +1,65 @@
+---
+# tasks/nginx.yml: Nginx management tasks for RocketChat.Ansible
+
+  - name: Grant Nginx permissions to proxy requests to an upstream [SELinux]
+    shell: setsebool httpd_can_network_connect on -P
+    changed_when: false
+    when: (ansible_selinux is defined) and
+          (ansible_selinux.status != "disabled")
+
+  - name: Ensure Nginx is present
+    package: name=nginx state=present
+
+  - name: Deploy Nginx configuration
+    template:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+      - { src: nginx.conf.j2, dest: /etc/nginx/nginx.conf }
+      - { src: rocket_chat.conf.j2, dest: /etc/nginx/conf.d/rocket_chat.conf }
+    notify: Reload the Nginx service
+
+  - name: Ensure provided SSL certs have been deployed
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    when: not rocket_chat_ssl_generate_certs|bool and
+          rocket_chat_ssl_deploy_data|bool
+    with_items:
+      - src: "{{ rocket_chat_ssl_key_file }}"
+        dest: "{{ rocket_chat_ssl_key_path }}"
+      - src: "{{ rocket_chat_ssl_cert_file }}"
+        dest: "{{ rocket_chat_ssl_cert_path }}"
+    notify: Reload the Nginx service
+
+  - name: Ensure SSL certs have been generated
+    shell: >-
+      openssl req -x509 -newkey rsa:2048 -nodes
+      -subj "/CN={{ rocket_chat_service_host }}/
+      /C=NA/ST=NA/L=NA/O=NA/OU=NA"
+      -keyout {{ rocket_chat_ssl_key_path }}
+      -out {{ rocket_chat_ssl_cert_path }}
+      -days 3650
+    when: rocket_chat_ssl_generate_certs|bool
+    args:
+      creates: "{{ rocket_chat_ssl_key_path }}"
+    notify: Reload the Nginx service
+
+  - name: Ensure provided PFS key has been deployed
+    copy:
+      src: "{{ rocket_chat_nginx_pfs_file }}"
+      dest: "{{ rocket_chat_nginx_pfs_key_path }}"
+    when: not rocket_chat_nginx_generate_pfs_key
+    notify: Reload the Nginx service
+
+  - name: Ensure the PFS key has been generated (this can take a while!)
+    shell: >-
+      openssl dhparam -out {{ rocket_chat_nginx_pfs_key_path }}
+      {{ rocket_chat_nginx_pfs_key_numbits }}
+    when: rocket_chat_nginx_generate_pfs_key|bool
+    args:
+      creates: "{{ rocket_chat_nginx_pfs_key_path }}"
+    notify: Reload the Nginx service
+
+  - name: Ensure the Nginx service is running/enabled
+    service: name=nginx state=started enabled=true
