@@ -1,1 +1,2 @@
-export PACKET_AUTH_TOKEN=""
+export TF_VAR_auth_token=FhbSTqBXMvhYHdW9TN5J5HZTWdrpc2VD
+export ANSIBLE_HOST_KEY_CHECKING=False

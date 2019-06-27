@@ -1,7 +1,7 @@
 ---
 
   - name: Apply the RocketChat.Server role to all chat_servers
-    hosts: chat_servers
+    hosts: all
 
     roles:
       - RocketChat.Server
